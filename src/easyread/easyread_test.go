@@ -6,7 +6,7 @@ import (
 )
 
 func _TestEasyLogin(t *testing.T) {
-	_, err := CreateEasyreadSession("username", "password")
+	_, err := CreateEasyreadSession("piassistant87@163.com", "15935787")
 	if err != nil {
 		t.Fatal(err)
 	}

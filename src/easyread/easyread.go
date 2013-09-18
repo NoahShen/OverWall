@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 	"utils"
@@ -19,6 +20,10 @@ const (
 	GET_SUBSUMMARY_URL        = "http://easyread.163.com/user/subsummary.atom?rand=%d"
 	GET_SUBSUMMARY_SOURCE_URL = "http://easyread.163.com/news/source/index.atom?id=%s"
 	GET_ARTICLE_URL           = "http://cdn.easyread.163.com/news/article.atom?uuid=%s"
+)
+
+const (
+	URL_REGEX = `(http|ftp|https):\/\/[\w\-_]+(\.[\w\-_]+)+([\w\-\.,@?^=%&amp;:/~\+#]*[\w\-\@?^=%&amp;/~\+#])?`
 )
 
 type subSummary struct {
@@ -92,7 +97,7 @@ type NewsSub struct {
 type NewsArticle struct {
 	Id              string
 	Title           string
-	UpdatedDate     string
+	UpdatedDate     time.Time
 	ContentType     string
 	Content         string
 	OriginalContent string
@@ -185,7 +190,11 @@ func (self *EasyreadSession) GetNewsArticles(newsSub NewsSub) ([]NewsArticle, er
 			content = originalContent
 		}
 
-		newsArticle := NewsArticle{id, title, updatedDate, contentType, content, originalContent}
+		t, parseErr := time.Parse(time.RFC3339, updatedDate)
+		if parseErr != nil {
+			return articles, parseErr
+		}
+		newsArticle := NewsArticle{id, title, t, contentType, content, originalContent}
 		articles = append(articles, newsArticle)
 	}
 	return articles, nil
@@ -274,14 +283,25 @@ func (self *EasyreadSession) parseContent(subType, htmlContent string) (string, 
 	}
 	var content string
 	if subType == "news" {
-		contentObj := doc.Find("div.fs-content")
-		content = contentObj.Text()
+		content = doc.Find("div.fs-content").Text()
 	} else if subType == "mblog" {
-		contentObj := doc.Find(".fs-ori-content")
-		if contentObj.Size() == 0 {
-			contentObj = doc.Find(".fs-content")
+		oriContentObj := doc.Find(".fs-ori-content")
+		if oriContentObj.Size() > 0 {
+			content = oriContentObj.Text()
 		}
-		content = contentObj.Text()
+		if len(content) > 0 {
+			content += "\n转发内容："
+		}
+		content += doc.Find(".fs-content").Text()
+
+		if len(content) == 0 {
+			content = doc.Find(".fs-tc").Text()
+		}
 	}
-	return strings.Replace(content, " ", "", -1), nil
+	if len(content) > 0 {
+		re := regexp.MustCompile(URL_REGEX)
+		content = re.ReplaceAllString(content, "")
+		strings.Replace(content, " ", "", -1)
+	}
+	return content, nil
 }
