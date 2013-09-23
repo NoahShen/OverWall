@@ -1,12 +1,19 @@
 package tts
 
 import (
+	"fmt"
+	"io/ioutil"
 	"testing"
 )
 
-func TestSentence(t *testing.T) {
-	err := GetSpeech("你好，謝謝你測試我的聲音，請輸入你要念的文字。", FEMALE, "test")
+func TestGernateSpeechFiles(t *testing.T) {
+	b, readFileErr := ioutil.ReadFile("news_content_testfile.txt")
+	if readFileErr != nil {
+		t.Fatal(readFileErr)
+	}
+	fileNames, err := GenerateSpeechFiles(string(b), FEMALE)
 	if err != nil {
 		t.Fatal(err)
 	}
+	fmt.Println(fileNames)
 }
