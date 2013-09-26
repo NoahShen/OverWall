@@ -7,7 +7,7 @@ import (
 )
 
 func TestGernateSpeechFiles(t *testing.T) {
-	b, readFileErr := ioutil.ReadFile("news_content_testfile.txt")
+	b, readFileErr := ioutil.ReadFile("/home/noah/workspace/OverWall/news_speech_file//news_content_testfile.txt")
 	if readFileErr != nil {
 		t.Fatal(readFileErr)
 	}

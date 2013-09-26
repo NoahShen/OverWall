@@ -34,7 +34,6 @@ const (
 func GenerateSpeechFiles(sentence string, speaker int) (string, error) {
 	sentences := SplitSentence(sentence, SentenceLen)
 	sLen := len(sentences)
-	fmt.Printf("len %d\n", sLen)
 	files := make([]string, 0)
 	filePrefix := utils.RandomString(7)
 	reply := make(chan int, sLen)
@@ -43,7 +42,7 @@ func GenerateSpeechFiles(sentence string, speaker int) (string, error) {
 	limitCh := make(chan int, TaskLimit)
 	for i, sentence := range sentences {
 		limitCh <- 1
-		fileName := fmt.Sprintf("%s-%d.mp3", filePrefix, i)
+		fileName := fmt.Sprintf("%s%s-%d.mp3", SpeechFileDir, filePrefix, i)
 		go getSpeech(sentence, speaker, fileName, reply, limitCh)
 		files = append(files, fileName)
 	}
@@ -58,7 +57,6 @@ func GenerateSpeechFiles(sentence string, speaker int) (string, error) {
 				break
 			}
 		}
-		fmt.Printf("task %d complete\n", i)
 	}
 	if timeout {
 		return "", errors.New("Generate speech timeout!")
@@ -71,28 +69,27 @@ func GenerateSpeechFiles(sentence string, speaker int) (string, error) {
 func mergeSpeechFiles(files []string) (string, error) {
 	fileNames := ""
 	for _, name := range files {
-		fileNames += SpeechFileDir + name + "|"
+		fileNames += name + "|"
+		defer os.Remove(name)
 	}
 	outputFileName := SpeechFileDir + utils.RandomString(10) + ".mp3"
 	fileArgs := fmt.Sprintf("concat:%s", fileNames)
-	fmt.Println("files:", fileArgs)
 	//ffmpeg -i "concat:file1.mp3|file2.mp3" -acodec copy output.mp3
 	cmd := exec.Command("ffmpeg", "-i", fileArgs, "-acodec", "copy", outputFileName)
-	fmt.Printf("cmd: %+v\n", cmd)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	mergeErr := cmd.Run()
-	fmt.Println("Result: " + out.String())
 	if mergeErr != nil {
 		return "", mergeErr
 	}
-
+	for _, name := range files {
+		fileNames += name + "|"
+	}
 	return outputFileName, nil
 }
 
 func getSpeech(sentence string, speaker int, fileName string, reply chan<- int, limitCh <-chan int) error {
 	defer func() { <-limitCh }()
-	fmt.Println("start speech task, ", fileName)
 	speechUrl := fmt.Sprintf(NEOSPEECH_URL, speaker, url.QueryEscape(sentence))
 	req, _ := http.NewRequest("GET", speechUrl, nil)
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/29.0.1547.66 Safari/537.36")
@@ -103,7 +100,7 @@ func getSpeech(sentence string, speaker int, fileName string, reply chan<- int, 
 	}
 	defer resp.Body.Close()
 
-	out, createFileErr := os.Create(SpeechFileDir + fileName)
+	out, createFileErr := os.Create(fileName)
 	if createFileErr != nil {
 		reply <- -1
 		return createFileErr
