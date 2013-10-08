@@ -26,13 +26,13 @@ func TestGetSubSummary(t *testing.T) {
 
 	for _, sub := range subs {
 		fmt.Printf("sub:%+v\n", sub)
-		if sub.Type == "mblog" {
+		if sub.Type == "news" {
 			articles, getArticlesErr := session.GetNewsArticles(sub)
 			if getArticlesErr != nil {
 				t.Fatal(getArticlesErr)
 			}
 			for _, article := range articles {
-				fmt.Printf("article:\n%+v\n", article)
+				fmt.Printf("article:\n%+v\n", article.Content)
 			}
 		}
 	}

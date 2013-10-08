@@ -21,6 +21,8 @@ var GenerateSpeechTimeout time.Duration = 30 * time.Second
 
 var TaskLimit = 4
 
+var limitCh = make(chan int, TaskLimit)
+
 const (
 	NEOSPEECH_URL = "http://208.109.168.116/GetAudio1.ashx?speaker=%d&content=%s"
 
@@ -31,7 +33,7 @@ const (
 	FEMALE = 202
 )
 
-func GenerateSpeechFiles(sentence string, speaker int) (string, error) {
+func GenerateSpeechFiles(sentence, outputFileName string, speaker int) (string, error) {
 	sentences := SplitSentence(sentence, SentenceLen)
 	sLen := len(sentences)
 	files := make([]string, 0)
@@ -39,7 +41,6 @@ func GenerateSpeechFiles(sentence string, speaker int) (string, error) {
 	reply := make(chan int, sLen)
 	timeout := false
 	hasError := false
-	limitCh := make(chan int, TaskLimit)
 	for i, sentence := range sentences {
 		limitCh <- 1
 		fileName := fmt.Sprintf("%s%s-%d.mp3", SpeechFileDir, filePrefix, i)
@@ -63,19 +64,19 @@ func GenerateSpeechFiles(sentence string, speaker int) (string, error) {
 	} else if hasError {
 		return "", errors.New("Generate speech error!")
 	}
-	return mergeSpeechFiles(files)
+	return mergeSpeechFiles(files, outputFileName)
 }
 
-func mergeSpeechFiles(files []string) (string, error) {
+func mergeSpeechFiles(files []string, outputFileName string) (string, error) {
 	fileNames := ""
 	for _, name := range files {
 		fileNames += name + "|"
 		defer os.Remove(name)
 	}
-	outputFileName := SpeechFileDir + utils.RandomString(10) + ".mp3"
+	outputFilePath := SpeechFileDir + outputFileName
 	fileArgs := fmt.Sprintf("concat:%s", fileNames)
 	//ffmpeg -i "concat:file1.mp3|file2.mp3" -acodec copy output.mp3
-	cmd := exec.Command("ffmpeg", "-i", fileArgs, "-acodec", "copy", outputFileName)
+	cmd := exec.Command("ffmpeg", "-i", fileArgs, "-acodec", "copy", outputFilePath)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	mergeErr := cmd.Run()
@@ -85,7 +86,7 @@ func mergeSpeechFiles(files []string) (string, error) {
 	for _, name := range files {
 		fileNames += name + "|"
 	}
-	return outputFileName, nil
+	return outputFilePath, nil
 }
 
 func getSpeech(sentence string, speaker int, fileName string, reply chan<- int, limitCh <-chan int) error {

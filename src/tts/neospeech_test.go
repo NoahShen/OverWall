@@ -11,7 +11,7 @@ func TestGernateSpeechFiles(t *testing.T) {
 	if readFileErr != nil {
 		t.Fatal(readFileErr)
 	}
-	fileNames, err := GenerateSpeechFiles(string(b), FEMALE)
+	fileNames, err := GenerateSpeechFiles(string(b), "news.mp3", FEMALE)
 	if err != nil {
 		t.Fatal(err)
 	}
