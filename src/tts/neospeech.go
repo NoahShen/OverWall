@@ -13,15 +13,7 @@ import (
 	"utils"
 )
 
-var SpeechFileDir = "/home/noah/workspace/OverWall/news_speech_file/"
-
-var SentenceLen = 500
-
 var GenerateSpeechTimeout time.Duration = 30 * time.Second
-
-var TaskLimit = 4
-
-var limitCh = make(chan int, TaskLimit)
 
 const (
 	NEOSPEECH_URL = "http://208.109.168.116/GetAudio1.ashx?speaker=%d&content=%s"
@@ -33,8 +25,15 @@ const (
 	FEMALE = 202
 )
 
-func GenerateSpeechFiles(sentence, outputFileName string, speaker int) (string, error) {
-	sentences := SplitSentence(sentence, SentenceLen)
+type option struct {
+	SpeechFileDir string
+	SentenceLen   int
+	LimitCh       chan int
+	Speaker       int
+}
+
+func GenerateSpeechFiles(sentence, outputFileName string, option option) (string, error) {
+	sentences := SplitSentence(sentence, option.SentenceLen)
 	sLen := len(sentences)
 	files := make([]string, 0)
 	filePrefix := utils.RandomString(7)
@@ -42,9 +41,9 @@ func GenerateSpeechFiles(sentence, outputFileName string, speaker int) (string, 
 	timeout := false
 	hasError := false
 	for i, sentence := range sentences {
-		limitCh <- 1
-		fileName := fmt.Sprintf("%s%s-%d.mp3", SpeechFileDir, filePrefix, i)
-		go getSpeech(sentence, speaker, fileName, reply, limitCh)
+		option.LimitCh <- 1
+		fileName := fmt.Sprintf("%s%s-%d.mp3", option.SpeechFileDir, filePrefix, i)
+		go getSpeech(sentence, option.Speaker, fileName, reply, option.LimitCh)
 		files = append(files, fileName)
 	}
 	for i := 0; i < sLen; i++ {
@@ -64,16 +63,16 @@ func GenerateSpeechFiles(sentence, outputFileName string, speaker int) (string, 
 	} else if hasError {
 		return "", errors.New("Generate speech error!")
 	}
-	return mergeSpeechFiles(files, outputFileName)
+	return mergeSpeechFiles(files, option.SpeechFileDir, outputFileName)
 }
 
-func mergeSpeechFiles(files []string, outputFileName string) (string, error) {
+func mergeSpeechFiles(files []string, speechFileDir, outputFileName string) (string, error) {
 	fileNames := ""
 	for _, name := range files {
 		fileNames += name + "|"
 		defer os.Remove(name)
 	}
-	outputFilePath := SpeechFileDir + outputFileName
+	outputFilePath := speechFileDir + outputFileName
 	fileArgs := fmt.Sprintf("concat:%s", fileNames)
 	//ffmpeg -i "concat:file1.mp3|file2.mp3" -acodec copy output.mp3
 	cmd := exec.Command("ffmpeg", "-i", fileArgs, "-acodec", "copy", outputFilePath)

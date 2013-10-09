@@ -35,8 +35,28 @@ func (s byUpdateTime) Less(i, j int) bool {
 
 type filterFunc func(news *VoiceNews) bool
 
-func GetVoiceNews(limit int, filter filterFunc) ([]*VoiceNews, error) {
-	session, createSeesErr := easyread.CreateEasyreadSession("piassistant87@163.com", "15935787")
+type Option struct {
+	SpeechFileDir    string
+	SpeechCache      int64
+	SentenceLen      int
+	MaxGenVoiceTask  int
+	EasyreadUsername string
+	EasyreadPwd      string
+}
+
+type NewsManager struct {
+	ttsManager *tts.TTSManager
+	opt        Option
+}
+
+func NewNewsManager(opt Option) *NewsManager {
+	ttsManager := tts.NewTTSManager(opt.SpeechFileDir, opt.SentenceLen, opt.MaxGenVoiceTask, opt.SpeechCache)
+	newsManager := &NewsManager{ttsManager, opt}
+	return newsManager
+}
+
+func (self *NewsManager) GetVoiceNews(limit int, filter filterFunc) ([]*VoiceNews, error) {
+	session, createSeesErr := easyread.CreateEasyreadSession(self.opt.EasyreadUsername, self.opt.EasyreadPwd)
 	if createSeesErr != nil {
 		return []*VoiceNews{}, createSeesErr
 	}
@@ -78,14 +98,14 @@ func GetVoiceNews(limit int, filter filterFunc) ([]*VoiceNews, error) {
 		} else {
 			speaker = tts.FEMALE
 		}
-		go generateVoiceFile(vNews, speaker)
+		go self.generateVoiceFile(vNews, speaker)
 	}
 	return voiceNewses, nil
 }
 
-func generateVoiceFile(vNews *VoiceNews, speaker int) {
+func (self *NewsManager) generateVoiceFile(vNews *VoiceNews, speaker int) {
 	fileName := fmt.Sprintf("%s-{%s}.mp3", vNews.Title, vNews.Id)
-	voiceFile, err := tts.GenerateSpeechFiles(vNews.Content, fileName, speaker)
+	voiceFile, err := self.ttsManager.GenerateSpeechFiles(vNews.Content, fileName, speaker)
 	if err != nil {
 		vNews.VoiceStatCh <- -1
 		return

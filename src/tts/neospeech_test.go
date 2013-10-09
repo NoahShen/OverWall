@@ -6,12 +6,14 @@ import (
 	"testing"
 )
 
-func TestGernateSpeechFiles(t *testing.T) {
-	b, readFileErr := ioutil.ReadFile("/home/noah/workspace/OverWall/news_speech_file//news_content_testfile.txt")
+func _TestGernateSpeechFiles(t *testing.T) {
+	b, readFileErr := ioutil.ReadFile("/home/noah/workspace/OverWall/news_speech_file/news_content_testfile.txt")
 	if readFileErr != nil {
 		t.Fatal(readFileErr)
 	}
-	fileNames, err := GenerateSpeechFiles(string(b), "news.mp3", FEMALE)
+	limitCh := make(chan int, 4)
+	opt := option{"/home/noah/workspace/OverWall/news_speech_file", 500, limitCh, FEMALE}
+	fileNames, err := GenerateSpeechFiles(string(b), "news.mp3", opt)
 	if err != nil {
 		t.Fatal(err)
 	}
