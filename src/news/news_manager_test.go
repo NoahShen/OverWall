@@ -12,7 +12,8 @@ func TestGetVoiceNews(t *testing.T) {
 		500,
 		4,
 		"piassistant87@163.com",
-		"15935787"}
+		"15935787",
+		false}
 	newsManager := NewNewsManager(opt)
 	voiceNewses, getNewsErr := newsManager.GetVoiceNews(2, filterOverLenNews)
 	if getNewsErr != nil {

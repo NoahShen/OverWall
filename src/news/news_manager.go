@@ -42,6 +42,7 @@ type Option struct {
 	MaxGenVoiceTask  int
 	EasyreadUsername string
 	EasyreadPwd      string
+	GenVoiceFile     bool
 }
 
 type NewsManager struct {
@@ -91,14 +92,16 @@ func (self *NewsManager) GetVoiceNews(limit int, filter filterFunc) ([]*VoiceNew
 	if limit > 0 && limit < len(voiceNewses) {
 		voiceNewses = voiceNewses[0:limit]
 	}
-	for i, vNews := range voiceNewses {
-		var speaker int
-		if i%2 == 0 {
-			speaker = tts.MALE
-		} else {
-			speaker = tts.FEMALE
+	if self.opt.GenVoiceFile {
+		for i, vNews := range voiceNewses {
+			var speaker int
+			if i%2 == 0 {
+				speaker = tts.MALE
+			} else {
+				speaker = tts.FEMALE
+			}
+			go self.generateVoiceFile(vNews, speaker)
 		}
-		go self.generateVoiceFile(vNews, speaker)
 	}
 	return voiceNewses, nil
 }
