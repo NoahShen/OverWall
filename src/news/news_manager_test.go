@@ -13,22 +13,15 @@ func TestGetVoiceNews(t *testing.T) {
 		4,
 		"piassistant87@163.com",
 		"15935787",
-		false}
+		true}
 	newsManager := NewNewsManager(opt)
 	voiceNewses, getNewsErr := newsManager.GetVoiceNews(2, filterOverLenNews)
 	if getNewsErr != nil {
 		t.Fatal(getNewsErr)
 	}
 	for _, news := range voiceNewses {
-		fmt.Printf("title: %s %s\nupdate_time: %s\ncontent len: %d\n", news.Title, news.Type, news.UpdatedTime, len(news.Content))
-		resp := <-news.VoiceStatCh
-		if resp == 1 {
-			fmt.Printf("voiceFile: %s\n=======\n", news.VoiceFile)
-			play := CreateNewsPlay(news)
-			play.Play()
-		} else {
-			fmt.Printf("generate voice file error!\n=======\n")
-		}
+		play := CreateNewsPlay(news)
+		play.Play()
 	}
 	fmt.Printf("news count:%d\n", len(voiceNewses))
 }
@@ -39,9 +32,14 @@ func filterOverLenNews(news *VoiceNews) bool {
 
 func _TestPlayVoiceNews(t *testing.T) {
 	voiceNews := &VoiceNews{}
-	voiceNews.VoiceFile = "/home/noah/workspace/OverWall/news_speech_file/杭州萧山一越野车冲入河中致3人溺亡-{4cb77afd5e7d4fd1995b48991652b779_1}.mp3"
+	voiceNews.VoiceFile = "/home/noah/workspace/OverWall/news_speech_file/上海夫妻俩侍奉8位老人30年 除自家父母还有邻居孤老-{8203d388622246548c416b05f309a8a1_1}.mp3"
 	play := CreateNewsPlay(voiceNews)
-	go play.Play()
+	go func() {
+		err := play.Play()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	time.Sleep(10e9)
 

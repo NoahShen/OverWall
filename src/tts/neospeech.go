@@ -36,7 +36,7 @@ func GenerateSpeechFiles(sentence, outputFileName string, option option) (string
 	sentences := SplitSentence(sentence, option.SentenceLen)
 	sLen := len(sentences)
 	files := make([]string, 0)
-	filePrefix := utils.RandomString(7)
+	filePrefix := utils.RandomString(16)
 	reply := make(chan int, sLen)
 	timeout := false
 	hasError := false
@@ -52,6 +52,7 @@ func GenerateSpeechFiles(sentence, outputFileName string, option option) (string
 			timeout = true
 			break
 		case r := <-reply:
+			files
 			if r == -1 {
 				hasError = true
 				break

@@ -5,22 +5,31 @@ $(function() {
 	});
 	
 	$("#play").click(function(){
-
+		$.ajax({
+			url: "/news/play",
+			cache: false
+		});
 	});
 
 	$("#stop").click(function(){
-
+		$.ajax({
+			url: "/news/stop",
+			cache: false
+		});
 	});
 
 	$("#next").click(function(){
-		// TODO send next request
+		$.ajax({
+			url: "/news/next",
+			cache: false
+		});
 	});
 	showNews(false);
 });
 
 function showNews(refresh) {
 	showLoading()
-	var url = 'news/getnews?limit=' + limit
+	var url = '/news/getnews?limit=' + limit
 	if (refresh) {
 		url += "&refresh=1"
 	}

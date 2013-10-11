@@ -3,6 +3,7 @@ package news
 import (
 	l4g "code.google.com/p/log4go"
 	"easyread"
+	"errors"
 	"fmt"
 	"os/exec"
 	"sort"
@@ -120,19 +121,19 @@ func (self *NewsManager) generateVoiceFile(vNews *VoiceNews, speaker int) {
 	fileName := fmt.Sprintf("%s-{%s}.mp3", vNews.Title, vNews.Id)
 	filePath := self.opt.SpeechFileDir + fileName
 	if utils.Exists(filePath) {
-		l4g.Debug("voice file exist, news_id=[%s], title=[%s]", vNews.Id, vNews.Title)
+		l4g.Debug("Voice file exist, news_id=[%s], title=[%s]", vNews.Id, vNews.Title)
 		vNews.VoiceFile = filePath
 		vNews.VoiceStatCh <- 1
 		return
 	}
-	l4g.Debug("Generating speech file for news, news_id=[%s], title=[%s]", vNews.Id, vNews.Title)
+	l4g.Debug("Start generating speech, news_id=[%s], title=[%s]", vNews.Id, vNews.Title)
 	voiceFile, err := self.ttsManager.GenerateSpeechFiles(vNews.Content, fileName, speaker)
 	if err != nil {
-		l4g.Error("Generating speech file for news error, news_id=[%s], title=[%s], error: %s", vNews.Id, vNews.Title, err.Error())
+		l4g.Error("Generating speech error, news_id=[%s], title=[%s], error: %s", vNews.Id, vNews.Title, err.Error())
 		vNews.VoiceStatCh <- -1
 		return
 	}
-	l4g.Debug("Generating speech file complete, news_id=[%s], title=[%s]", vNews.Id, vNews.Title)
+	l4g.Debug("Generating speech complete, news_id=[%s], title=[%s]", vNews.Id, vNews.Title)
 	vNews.VoiceFile = voiceFile
 	vNews.VoiceStatCh <- 1
 }
@@ -144,13 +145,22 @@ type NewsPlay struct {
 
 func CreateNewsPlay(vNews *VoiceNews) *NewsPlay {
 	play := &NewsPlay{}
-	play.cmd = exec.Command("mpg321", vNews.VoiceFile)
+
 	play.VoiceNews = vNews
 	return play
 }
 
 func (self *NewsPlay) Play() error {
-	l4g.Debug("Playing speech file for news, news_id=[%], title=[%s], error: %s", self.VoiceNews.Id, self.VoiceNews.Title)
+	l4g.Debug("Start playing speech file for news, news_id=[%s], title=[%s]", self.VoiceNews.Id, self.VoiceNews.Title)
+	if len(self.VoiceNews.VoiceFile) == 0 {
+		l4g.Debug("Waiting for generating voice file complete, news_id=[%s], title=[%s]", self.VoiceNews.Id, self.VoiceNews.Title)
+		resp := <-self.VoiceNews.VoiceStatCh
+		if resp != 1 {
+			l4g.Error("Generating voice file error, news_id=[%s], title=[%s]", self.VoiceNews.Id, self.VoiceNews.Title)
+			return errors.New("Generate voice file error!")
+		}
+	}
+	self.cmd = exec.Command("mpg321", self.VoiceNews.VoiceFile)
 	_, playErr := self.cmd.Output()
 	if playErr != nil {
 		return playErr
@@ -159,6 +169,11 @@ func (self *NewsPlay) Play() error {
 }
 
 func (self *NewsPlay) Stop() error {
-	l4g.Debug("Stop playing speech file for news, news_id=[%], title=[%s], error: %s", self.VoiceNews.Id, self.VoiceNews.Title)
-	return self.cmd.Process.Kill()
+	l4g.Debug("Stop playing speech file for news, news_id=[%s], title=[%s]", self.VoiceNews.Id, self.VoiceNews.Title)
+	if self.cmd != nil {
+		err := self.cmd.Process.Kill()
+		self.cmd = nil
+		return err
+	}
+	return nil
 }
