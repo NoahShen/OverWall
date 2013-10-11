@@ -1,12 +1,14 @@
 package news
 
 import (
+	l4g "code.google.com/p/log4go"
 	"easyread"
 	"fmt"
 	"os/exec"
 	"sort"
 	"time"
 	"tts"
+	"utils"
 )
 
 type VoiceNews struct {
@@ -46,22 +48,28 @@ type Option struct {
 }
 
 type NewsManager struct {
-	ttsManager *tts.TTSManager
-	opt        Option
+	ttsManager   *tts.TTSManager
+	opt          Option
+	easyReadSess *easyread.EasyreadSession
 }
 
 func NewNewsManager(opt Option) *NewsManager {
 	ttsManager := tts.NewTTSManager(opt.SpeechFileDir, opt.SentenceLen, opt.MaxGenVoiceTask, opt.SpeechCache)
-	newsManager := &NewsManager{ttsManager, opt}
+	newsManager := &NewsManager{ttsManager, opt, nil}
 	return newsManager
 }
 
 func (self *NewsManager) GetVoiceNews(limit int, filter filterFunc) ([]*VoiceNews, error) {
-	session, createSeesErr := easyread.CreateEasyreadSession(self.opt.EasyreadUsername, self.opt.EasyreadPwd)
-	if createSeesErr != nil {
-		return []*VoiceNews{}, createSeesErr
+	if self.easyReadSess == nil {
+		l4g.Info("start creating easyread seesion, user=[%s] pwd=[%s]", self.opt.EasyreadUsername, self.opt.EasyreadPwd)
+		session, createSeesErr := easyread.CreateEasyreadSession(self.opt.EasyreadUsername, self.opt.EasyreadPwd)
+		if createSeesErr != nil {
+			return []*VoiceNews{}, createSeesErr
+		}
+		self.easyReadSess = session
 	}
-	subs, getSubErr := session.GetNewsSub()
+	l4g.Info("get news subscriptions...")
+	subs, getSubErr := self.easyReadSess.GetNewsSub()
 	if getSubErr != nil {
 		return []*VoiceNews{}, getSubErr
 	}
@@ -69,7 +77,8 @@ func (self *NewsManager) GetVoiceNews(limit int, filter filterFunc) ([]*VoiceNew
 	voiceNewses := make([]*VoiceNews, 0)
 	for _, sub := range subs {
 		newsType := sub.Type
-		articles, getArticlesErr := session.GetNewsArticles(sub)
+		l4g.Debug("get news articles, sub_id=[%s], name=[%s], type=[%s]", sub.Id, sub.Name, sub.Type)
+		articles, getArticlesErr := self.easyReadSess.GetNewsArticles(sub)
 		if getArticlesErr != nil {
 			return []*VoiceNews{}, getArticlesErr
 		}
@@ -93,6 +102,7 @@ func (self *NewsManager) GetVoiceNews(limit int, filter filterFunc) ([]*VoiceNew
 		voiceNewses = voiceNewses[0:limit]
 	}
 	if self.opt.GenVoiceFile {
+		l4g.Debug("Start generating voice files.")
 		for i, vNews := range voiceNewses {
 			var speaker int
 			if i%2 == 0 {
@@ -108,11 +118,21 @@ func (self *NewsManager) GetVoiceNews(limit int, filter filterFunc) ([]*VoiceNew
 
 func (self *NewsManager) generateVoiceFile(vNews *VoiceNews, speaker int) {
 	fileName := fmt.Sprintf("%s-{%s}.mp3", vNews.Title, vNews.Id)
+	filePath := self.opt.SpeechFileDir + fileName
+	if utils.Exists(filePath) {
+		l4g.Debug("voice file exist, news_id=[%s], title=[%s]", vNews.Id, vNews.Title)
+		vNews.VoiceFile = filePath
+		vNews.VoiceStatCh <- 1
+		return
+	}
+	l4g.Debug("Generating speech file for news, news_id=[%s], title=[%s]", vNews.Id, vNews.Title)
 	voiceFile, err := self.ttsManager.GenerateSpeechFiles(vNews.Content, fileName, speaker)
 	if err != nil {
+		l4g.Error("Generating speech file for news error, news_id=[%s], title=[%s], error: %s", vNews.Id, vNews.Title, err.Error())
 		vNews.VoiceStatCh <- -1
 		return
 	}
+	l4g.Debug("Generating speech file complete, news_id=[%s], title=[%s]", vNews.Id, vNews.Title)
 	vNews.VoiceFile = voiceFile
 	vNews.VoiceStatCh <- 1
 }
@@ -130,14 +150,15 @@ func CreateNewsPlay(vNews *VoiceNews) *NewsPlay {
 }
 
 func (self *NewsPlay) Play() error {
-	b, playErr := self.cmd.Output()
+	l4g.Debug("Playing speech file for news, news_id=[%], title=[%s], error: %s", self.VoiceNews.Id, self.VoiceNews.Title)
+	_, playErr := self.cmd.Output()
 	if playErr != nil {
 		return playErr
 	}
-	fmt.Println(string(b))
 	return nil
 }
 
 func (self *NewsPlay) Stop() error {
+	l4g.Debug("Stop playing speech file for news, news_id=[%], title=[%s], error: %s", self.VoiceNews.Id, self.VoiceNews.Title)
 	return self.cmd.Process.Kill()
 }
