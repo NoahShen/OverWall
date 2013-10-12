@@ -1,4 +1,5 @@
-var limit = 5
+var limit = 20;
+var playStatusTimer;
 $(function() {
 	$("#refresh").click(function(){
 		showNews(true)
@@ -41,13 +42,31 @@ function showNews(refresh) {
 				var id = oneNews.id
 				var title = oneNews.title
 				var time = oneNews.updatedTime
-				var newsHtml = "<li news-id='" + id + "'><a href='#'>" + title + " [" + time + "]<span class='ui-li-count'>播放中...</span></a></li>"
+				var newsHtml = "<li news-id='" + id + "'>" +
+									"<a href='#'>" + 
+										"<h3 style='white-space:normal;'>" + title + "</h3>" + 
+										"<p>" + 	time + "</p>" + 
+										"<span class='ui-li-count play-status' style='display:none;'>播报中...</span>" + 
+									"</a>" + 
+								"</li>"
 	    			list.append(newsHtml)
 	  		});
 			list.listview('refresh');
 		}
 		
 		hideLoading();
+	});
+	
+	playStatusTimer = setInterval(playStatusTimerFunc,1000);
+}
+
+function playStatusTimerFunc() {
+	$.getJSON("/news/getplayingnews", function(result) {
+		$("span.play-status").hide()
+		if (result.result == "success" && result.playStatus == "playing") {
+			var newsId = result.newsId
+			$("li[news-id='" + newsId + "'] span.play-status").show()
+		}
 	});
 }
 

@@ -1,7 +1,6 @@
 package tts
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -17,8 +16,6 @@ var GenerateSpeechTimeout time.Duration = 30 * time.Second
 
 const (
 	NEOSPEECH_URL = "http://208.109.168.116/GetAudio1.ashx?speaker=%d&content=%s"
-
-	MERGE_MP3_ARG = `"concat:%s`
 )
 const (
 	MALE   = 203
@@ -52,7 +49,6 @@ func GenerateSpeechFiles(sentence, outputFileName string, option option) (string
 			timeout = true
 			break
 		case r := <-reply:
-			files
 			if r == -1 {
 				hasError = true
 				break
@@ -77,10 +73,9 @@ func mergeSpeechFiles(files []string, speechFileDir, outputFileName string) (str
 	fileArgs := fmt.Sprintf("concat:%s", fileNames)
 	//ffmpeg -i "concat:file1.mp3|file2.mp3" -acodec copy output.mp3
 	cmd := exec.Command("ffmpeg", "-i", fileArgs, "-acodec", "copy", outputFilePath)
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	mergeErr := cmd.Run()
+	_, mergeErr := cmd.Output()
 	if mergeErr != nil {
+		fmt.Println("merge error!", mergeErr)
 		return "", mergeErr
 	}
 	for _, name := range files {

@@ -8,6 +8,7 @@ import (
 	"html/template"
 	"net/http"
 	"news"
+	"os/exec"
 	"strconv"
 )
 
@@ -15,16 +16,18 @@ type WebManager struct {
 	newsManager *news.NewsManager
 	port        string
 	attributes  map[string]interface{}
-	currentPlay *news.NewsPlay
+	currentPlay *news.VoiceNews
 	stopPlayCh  chan int
+	chimesFile  string
 }
 
-func NewWebManager(newsManager *news.NewsManager, port string) *WebManager {
+func NewWebManager(newsManager *news.NewsManager, port string, chimesFile string) *WebManager {
 	webManager := &WebManager{newsManager,
 		port,
 		make(map[string]interface{}),
 		nil,
-		make(chan int, 1)}
+		make(chan int, 1),
+		chimesFile}
 	return webManager
 }
 
@@ -131,14 +134,17 @@ func playingNews(webManager *WebManager, voiceNewses []*news.VoiceNews) {
 			webManager.currentPlay = nil
 			return
 		default:
-			play := news.CreateNewsPlay(vNews)
-			webManager.currentPlay = play
-			play.Play()
+			webManager.currentPlay = vNews
+			vNews.Play()
+			playChimes(webManager)
 		}
 
 	}
 	webManager.currentPlay = nil
+}
 
+func playChimes(webManager *WebManager) {
+	exec.Command("mpg321", webManager.chimesFile).Output()
 }
 
 func stopPlayNewsHandler(w http.ResponseWriter, req *http.Request, webManager *WebManager) {
@@ -154,6 +160,22 @@ func playNextNewsHandler(w http.ResponseWriter, req *http.Request, webManager *W
 	}
 }
 
+func getPlayingNewsHandler(w http.ResponseWriter, req *http.Request, webManager *WebManager) {
+	news := webManager.currentPlay
+	result := make(map[string]interface{})
+	if news == nil {
+		result["result"] = "success"
+		result["playStatus"] = "stop"
+		writeJsonResponse(w, result)
+		return
+	}
+
+	result["result"] = "success"
+	result["playStatus"] = "playing"
+	result["newsId"] = news.Id
+	writeJsonResponse(w, result)
+}
+
 func (self *WebManager) StartServer() {
 	l4g.Info("start http server on port=[%s]", self.port)
 	r := mux.NewRouter()
@@ -162,6 +184,7 @@ func (self *WebManager) StartServer() {
 	r.HandleFunc("/news/play", func(w http.ResponseWriter, r *http.Request) { playNewsHandler(w, r, self) })
 	r.HandleFunc("/news/stop", func(w http.ResponseWriter, r *http.Request) { stopPlayNewsHandler(w, r, self) })
 	r.HandleFunc("/news/next", func(w http.ResponseWriter, r *http.Request) { playNextNewsHandler(w, r, self) })
+	r.HandleFunc("/news/getplayingnews", func(w http.ResponseWriter, r *http.Request) { getPlayingNewsHandler(w, r, self) })
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("pages/static/"))))
 	http.Handle("/", r)
 	http.ListenAndServe(":"+self.port, nil)

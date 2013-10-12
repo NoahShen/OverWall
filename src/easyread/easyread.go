@@ -284,6 +284,17 @@ func (self *EasyreadSession) parseContent(subType, htmlContent string) (string, 
 	var content string
 	if subType == "news" {
 		content = doc.Find("div.fs-content").Text()
+		if len(content) == 0 {
+			content = doc.Find("div.m-quote").Text()
+			if len(content) == 0 {
+				content = doc.Find("div.fs-quote").Text()
+				if len(content) == 0 {
+					// TODO
+					fmt.Println("Parse from m-quote class:", content)
+					fmt.Println("htmlContent:", htmlContent)
+				}
+			}
+		}
 	} else if subType == "mblog" {
 		oriContentObj := doc.Find(".fs-ori-content")
 		if oriContentObj.Size() > 0 {

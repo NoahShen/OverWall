@@ -13,16 +13,15 @@ func TestGetVoiceNews(t *testing.T) {
 		4,
 		"piassistant87@163.com",
 		"15935787",
-		true}
+		false}
 	newsManager := NewNewsManager(opt)
-	voiceNewses, getNewsErr := newsManager.GetVoiceNews(2, filterOverLenNews)
+	voiceNewses, getNewsErr := newsManager.GetVoiceNews(30, filterOverLenNews)
 	if getNewsErr != nil {
 		t.Fatal(getNewsErr)
 	}
-	for _, news := range voiceNewses {
-		play := CreateNewsPlay(news)
-		play.Play()
-	}
+	//for _, news := range voiceNewses {
+	//	news.Play()
+	//}
 	fmt.Printf("news count:%d\n", len(voiceNewses))
 }
 
@@ -33,9 +32,8 @@ func filterOverLenNews(news *VoiceNews) bool {
 func _TestPlayVoiceNews(t *testing.T) {
 	voiceNews := &VoiceNews{}
 	voiceNews.VoiceFile = "/home/noah/workspace/OverWall/news_speech_file/上海夫妻俩侍奉8位老人30年 除自家父母还有邻居孤老-{8203d388622246548c416b05f309a8a1_1}.mp3"
-	play := CreateNewsPlay(voiceNews)
 	go func() {
-		err := play.Play()
+		err := voiceNews.Play()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -43,5 +41,5 @@ func _TestPlayVoiceNews(t *testing.T) {
 
 	time.Sleep(10e9)
 
-	play.Stop()
+	voiceNews.Stop()
 }
