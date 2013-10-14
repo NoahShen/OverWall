@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os/exec"
 	"sort"
+	"strings"
 	"time"
 	"tts"
 	"utils"
@@ -129,7 +130,8 @@ func (self *NewsManager) GetVoiceNews(limit int, filter filterFunc) ([]*VoiceNew
 }
 
 func (self *NewsManager) generateVoiceFile(vNews *VoiceNews, speaker int) {
-	fileName := fmt.Sprintf("%s-{%s}.mp3", vNews.Title, vNews.Id)
+	title := strings.Replace(vNews.Title, "/", "", -1)
+	fileName := fmt.Sprintf("%s-{%s}.mp3", title, vNews.Id)
 	filePath := self.opt.SpeechFileDir + fileName
 	if utils.Exists(filePath) {
 		l4g.Debug("Voice file exist, news_id=[%s], title=[%s]", vNews.Id, vNews.Title)

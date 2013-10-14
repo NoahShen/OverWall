@@ -12,27 +12,38 @@ import (
 	"strconv"
 )
 
+type Config struct {
+	SpeechFileDir    string `json:"speechFileDir,omitempty"`
+	CacheSize        int64  `json:"cacheSize,omitempty"`
+	OneSentenceLen   int    `json:"oneSentenceLen,omitempty"`
+	MaxGenVoiceTask  int    `json:"maxGenVoiceTask,omitempty"`
+	EasyreadUsername string `json:"easyreadUsername,omitempty"`
+	EasyreadPwd      string `json:"easyreadPwd,omitempty"`
+	StaticResource   string `json:"staticResource,omitempty"`
+	MainPage         string `json:"mainPage,omitempty"`
+	Port             int    `json:"port,omitempty"`
+	ChimesFile       string `json:"chimesFile,omitempty"`
+}
+
 type WebManager struct {
 	newsManager *news.NewsManager
-	port        string
 	attributes  map[string]interface{}
 	currentPlay *news.VoiceNews
 	stopPlayCh  chan int
-	chimesFile  string
+	config      *Config
 }
 
-func NewWebManager(newsManager *news.NewsManager, port string, chimesFile string) *WebManager {
+func NewWebManager(newsManager *news.NewsManager, port string, config *Config) *WebManager {
 	webManager := &WebManager{newsManager,
-		port,
 		make(map[string]interface{}),
 		nil,
 		make(chan int, 1),
-		chimesFile}
+		config}
 	return webManager
 }
 
 func showMainPageHandler(w http.ResponseWriter, req *http.Request, webManager *WebManager) {
-	t, err := template.ParseFiles("./pages/main.html")
+	t, err := template.ParseFiles(webManager.config.MainPage)
 	if err != nil {
 		l4g.Error("template.ParseFiles error:%s", err.Error())
 		return
@@ -144,7 +155,7 @@ func playingNews(webManager *WebManager, voiceNewses []*news.VoiceNews) {
 }
 
 func playChimes(webManager *WebManager) {
-	exec.Command("mpg321", webManager.chimesFile).Output()
+	exec.Command("mpg321", webManager.config.ChimesFile).Output()
 }
 
 func stopPlayNewsHandler(w http.ResponseWriter, req *http.Request, webManager *WebManager) {
@@ -166,6 +177,7 @@ func getPlayingNewsHandler(w http.ResponseWriter, req *http.Request, webManager 
 	if news == nil {
 		result["result"] = "success"
 		result["playStatus"] = "stop"
+		//l4g.Debug("Not playing any news!")
 		writeJsonResponse(w, result)
 		return
 	}
@@ -173,11 +185,12 @@ func getPlayingNewsHandler(w http.ResponseWriter, req *http.Request, webManager 
 	result["result"] = "success"
 	result["playStatus"] = "playing"
 	result["newsId"] = news.Id
+	//l4g.Debug("Playing news, news_id=[%s], title=[%s]", news.Id, news.Title)
 	writeJsonResponse(w, result)
 }
 
 func (self *WebManager) StartServer() {
-	l4g.Info("start http server on port=[%s]", self.port)
+	l4g.Info("start http server on port=[%d]", self.config.Port)
 	r := mux.NewRouter()
 	r.HandleFunc("/news", func(w http.ResponseWriter, r *http.Request) { showMainPageHandler(w, r, self) })
 	r.HandleFunc("/news/getnews", func(w http.ResponseWriter, r *http.Request) { getNewsHandler(w, r, self) })
@@ -185,7 +198,7 @@ func (self *WebManager) StartServer() {
 	r.HandleFunc("/news/stop", func(w http.ResponseWriter, r *http.Request) { stopPlayNewsHandler(w, r, self) })
 	r.HandleFunc("/news/next", func(w http.ResponseWriter, r *http.Request) { playNextNewsHandler(w, r, self) })
 	r.HandleFunc("/news/getplayingnews", func(w http.ResponseWriter, r *http.Request) { getPlayingNewsHandler(w, r, self) })
-	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("pages/static/"))))
+	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(self.config.StaticResource))))
 	http.Handle("/", r)
-	http.ListenAndServe(":"+self.port, nil)
+	http.ListenAndServe(fmt.Sprintf(":%d", self.config.Port), nil)
 }

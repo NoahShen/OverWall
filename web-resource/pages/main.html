@@ -1,0 +1,54 @@
+<!DOCTYPE html> 
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, height=device-height, initial-scale=1"> 
+	<title>新闻</title> 
+	<link rel="stylesheet" href="http://code.jquery.com/mobile/1.2.1/jquery.mobile-1.2.1.min.css" />
+	<script src="http://code.jquery.com/jquery-1.8.3.min.js"></script>
+	<script src="http://code.jquery.com/mobile/1.2.1/jquery.mobile-1.2.1.min.js"></script>
+	<script src="static/js/main.js"></script>
+	<style type="text/css">
+	    .ui-loader-background {
+	        width:100%;
+	        height:100%;
+	        top:0;
+	        margin: 0;
+	        background: rgba(0, 0, 0, 0.3);
+	        display:none;
+	        position: fixed;
+	        z-index:1000;
+	    }
+	 
+	    .ui-loading .ui-loader-background {
+	        display:block;
+	    }
+	</style>
+</head> 	
+<body> 
+<!-- Start of first page: #one -->
+<div data-role="page" id="one">
+	<div data-role="header">
+		<h1>新闻</h1>
+		<a id="refresh" href="#" data-icon="refresh" data-iconpos="notext" class="ui-btn-right">刷新</a>
+	</div><!-- /header -->
+
+	<div data-role="content" >	
+		<div class="content-primary">
+			<ul data-role="listview">
+			</ul>
+		</div><!--/content-primary -->	
+	</div><!-- /content -->
+	<div data-role="footer" data-position="fixed" class="ui-bar">
+		<div data-role="controlgroup" data-type="horizontal">
+			<a id="play" href="#" data-icon="arrow-r">播放</a>
+			<a id="stop" href="#" data-icon="minus">停止</a>
+			<a id="next" href="#" data-icon="forward">下一条</a>
+		</div>
+	</div><!-- /footer -->
+</div><!-- /page one -->
+
+<div class="ui-loader-background"> </div>
+
+</body>
+</html>
