@@ -1,4 +1,4 @@
-var limit = 20;
+var limit = 50;
 var playStatusTimer;
 $(function() {
 	$("#refresh").click(function(){
