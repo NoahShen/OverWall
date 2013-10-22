@@ -12,13 +12,16 @@ import (
 )
 
 var (
-	logConfig = flag.String("log-config", "", "path of log config file")
-	//logConfig = "../../config/logConfig.xml"
+	logConfig  = flag.String("log-config", "", "path of log config file")
 	configPath = flag.String("config-path", "", "path of config file")
-	//configPath = "../../config/overwall.config"
 )
 
 func main() {
+	//logConfig := new(string)
+	//*logConfig = "../../config/logConfig.xml"
+	//configPath := new(string)
+	//*configPath = "../../config/overwall.config"
+
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	flag.Parse()

@@ -12,9 +12,10 @@ import (
 	"utils"
 )
 
-var GenerateSpeechTimeout time.Duration = 30 * time.Second
+var GenerateSpeechTimeout time.Duration = 60 * time.Second
 
 const (
+	allowErrTimes = 3
 	NEOSPEECH_URL = "http://208.109.168.116/GetAudio1.ashx?speaker=%d&content=%s"
 )
 const (
@@ -31,6 +32,19 @@ type option struct {
 
 func GenerateSpeechFiles(sentence, outputFileName string, option option) (string, error) {
 	sentences := SplitSentence(sentence, option.SentenceLen)
+	files := make([]string, 0)
+	var genErr error
+	for i := 0; i < allowErrTimes; i++ {
+		files, genErr = doGenerateSpeechFiles(sentences, option)
+		if genErr == nil {
+			return mergeSpeechFiles(files, option.SpeechFileDir, outputFileName)
+		}
+		fmt.Println("error occour:", genErr, " try again!")
+	}
+	return "", genErr
+}
+
+func doGenerateSpeechFiles(sentences []string, option option) ([]string, error) {
 	sLen := len(sentences)
 	files := make([]string, 0)
 	filePrefix := utils.RandomString(16)
@@ -43,43 +57,49 @@ func GenerateSpeechFiles(sentence, outputFileName string, option option) (string
 		go getSpeech(sentence, option.Speaker, fileName, reply, option.LimitCh)
 		files = append(files, fileName)
 	}
+L:
 	for i := 0; i < sLen; i++ {
 		select {
 		case <-time.After(time.Duration(GenerateSpeechTimeout)):
 			timeout = true
-			break
+			break L
 		case r := <-reply:
 			if r == -1 {
 				hasError = true
-				break
+				break L
 			}
 		}
 	}
 	if timeout {
-		return "", errors.New("Generate speech timeout!")
+		return []string{}, errors.New("Generate speech timeout!")
 	} else if hasError {
-		return "", errors.New("Generate speech error!")
+		return []string{}, errors.New("Generate speech error!")
 	}
-	return mergeSpeechFiles(files, option.SpeechFileDir, outputFileName)
+	return files, nil
 }
 
 func mergeSpeechFiles(files []string, speechFileDir, outputFileName string) (string, error) {
+	outputFilePath := speechFileDir + outputFileName
+
+	if len(files) == 1 {
+		renameErr := os.Rename(files[0], outputFilePath)
+		return outputFilePath, renameErr
+	}
+
 	fileNames := ""
 	for _, name := range files {
 		fileNames += name + "|"
 		defer os.Remove(name)
 	}
-	outputFilePath := speechFileDir + outputFileName
+
 	fileArgs := fmt.Sprintf("concat:%s", fileNames)
 	//ffmpeg -i "concat:file1.mp3|file2.mp3" -acodec copy output.mp3
+	//fmt.Println("ffmpeg", "-i", fileArgs, "-acodec", "copy", outputFilePath)
 	cmd := exec.Command("ffmpeg", "-i", fileArgs, "-acodec", "copy", outputFilePath)
 	_, mergeErr := cmd.Output()
 	if mergeErr != nil {
 		fmt.Println("merge error!", mergeErr)
 		return "", mergeErr
-	}
-	for _, name := range files {
-		fileNames += name + "|"
 	}
 	return outputFilePath, nil
 }
@@ -91,6 +111,8 @@ func getSpeech(sentence string, speaker int, fileName string, reply chan<- int, 
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/29.0.1547.66 Safari/537.36")
 	resp, httpErr := http.DefaultClient.Do(req)
 	if httpErr != nil {
+		fmt.Println("sentence:", sentence)
+		fmt.Println("httpErr:", httpErr)
 		reply <- -1
 		return httpErr
 	}
@@ -98,6 +120,8 @@ func getSpeech(sentence string, speaker int, fileName string, reply chan<- int, 
 
 	out, createFileErr := os.Create(fileName)
 	if createFileErr != nil {
+		fmt.Println("sentence:", sentence)
+		fmt.Println("createFileErr:", createFileErr)
 		reply <- -1
 		return createFileErr
 	}
@@ -105,6 +129,8 @@ func getSpeech(sentence string, speaker int, fileName string, reply chan<- int, 
 
 	_, copyErr := io.Copy(out, resp.Body)
 	if copyErr != nil {
+		fmt.Println("sentence:", sentence)
+		fmt.Println("copyErr:", copyErr)
 		reply <- -1
 		return copyErr
 	}

@@ -313,6 +313,7 @@ func (self *EasyreadSession) parseContent(subType, htmlContent string) (string, 
 		re := regexp.MustCompile(URL_REGEX)
 		content = re.ReplaceAllString(content, "")
 		content = strings.Replace(content, " ", "", -1)
+		content = strings.Replace(content, "\n", "", -1)
 		content = strings.TrimSpace(content)
 	}
 	return content, nil
